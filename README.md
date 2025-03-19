@@ -47,6 +47,9 @@ Die Anwendung verwendet folgende CSV-Dateien:
 - `data/menu_items.csv`: Menü- und Ernährungsinformationen
 - `data/weather_data.csv`: Wetterdaten
 
+Die Anwendung darpber hinaus eine Datenbank:
+- hauszumleben.db welche strukturierte Daten zu Bewohnern und Essensgewohnheiten beinhaltet
+
 ## Berichte
 
 Die Anwendung bietet die Möglichkeit, verschiedene Excel-Berichte zu generieren:
