@@ -9,6 +9,7 @@ from PIL import Image
 import base64
 from io import BytesIO
 from utils import setup_page_config, load_database_data, calculate_social_isolation_risk, calculate_fall_risk
+from chaty import smart_research_chatbot  # Import the smart_research_chatbot function
 
 # Setup page configuration
 setup_page_config()
@@ -101,16 +102,53 @@ st.markdown("""
         line-height: 2.2rem;  /* More space between options */
         padding: 10px; /* Add some padding around each item */
     }
+    /* Style chat messages */
+    .chat-message {
+        padding: 8px 12px;
+        border-radius: 15px;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .user-message {
+        background-color: #e6f7ff;
+        border: 1px solid #91d5ff;
+    }
+    .bot-message {
+        background-color: #f2f2f2;
+        border: 1px solid #d9d9d9;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # Show the patients as radio buttons in the sidebar
 selected_patient_info = st.sidebar.radio("Patient auswählen:", patient_list, index=0 if patient_list else None)
 
+# Improved chat interface
+st.sidebar.markdown("### Assistenz-Chat")
+st.sidebar.markdown("Stellen Sie Fragen zu Patienten oder zur Datenbank:")
+
+# Initialize chat history in session state if it doesn't exist
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Display chat messages from history
 messages = st.sidebar.container(height=300)
-if prompt := st.sidebar.chat_input("Say something"):        
+for message in st.session_state.chat_history:
+    messages.chat_message(message["role"]).write(message["content"])
+
+# Accept user input
+if prompt := st.sidebar.chat_input("Frage stellen..."):
+    # Add user message to chat history
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
     messages.chat_message("user").write(prompt)
-    messages.chat_message("assistant").write(f"Echo: {prompt}")
+    
+    # Get AI response using the smart_research_chatbot function
+    with st.spinner("Nachdenken..."):  # Changed from st.sidebar.spinner to st.spinner
+        response = smart_research_chatbot(prompt)
+    
+    # Add assistant response to chat history
+    st.session_state.chat_history.append({"role": "assistant", "content": response})
+    messages.chat_message("assistant").write(response)
 
 # Falls ein Patient ausgewählt wurde, entsprechende DetaiFls abrufen
 if selected_patient_info:
