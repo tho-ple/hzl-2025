@@ -1,0 +1,16 @@
+monitoring_id,resident_id,date,blood_pressure_systolic,blood_pressure_diastolic,heart_rate,weight,notes
+1,1,2024-01-01,130,80,72,68.5,Regular check-up
+2,2,2024-01-01,128,78,70,72.3,Regular check-up
+3,3,2024-01-01,135,85,75,65.8,Regular check-up
+4,4,2024-01-01,122,76,68,70.1,Regular check-up
+5,5,2024-01-01,138,82,73,67.9,Regular check-up
+6,1,2024-01-02,132,81,71,68.4,Regular check-up
+7,2,2024-01-02,129,79,69,72.2,Regular check-up
+8,3,2024-01-02,134,84,74,65.7,Regular check-up
+9,4,2024-01-02,121,75,67,70.0,Regular check-up
+10,5,2024-01-02,137,81,72,67.8,Regular check-up
+11,1,2024-01-03,131,80,70,68.3,Regular check-up
+12,2,2024-01-03,127,77,69,72.1,Regular check-up
+13,3,2024-01-03,133,83,73,65.6,Regular check-up
+14,4,2024-01-03,120,74,67,69.9,Regular check-up
+15,5,2024-01-03,136,80,71,67.7,Regular check-up 

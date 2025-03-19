@@ -1,0 +1,11 @@
+item_id,name,category,calories,protein,carbs,fat,dietary_category,allergens
+1,Grilled Chicken Breast,main,165,31,0,3.6,regular,
+2,Vegetable Soup,starter,120,4,20,3,vegetarian,
+3,Salmon Fillet,main,208,22,0,13,regular,fish
+4,Garden Salad,side,45,2,8,0.5,vegetarian,
+5,Whole Grain Bread,side,69,4,13,1,regular,gluten
+6,Fruit Yogurt,dessert,120,4,20,3,regular,dairy
+7,Quinoa Bowl,main,222,8,39,4,vegetarian,
+8,Grilled Vegetables,side,85,2,12,4,vegetarian,
+9,Apple Pie,dessert,265,2,45,10,regular,gluten
+10,Green Smoothie,beverage,120,2,25,1,vegetarian, 
