@@ -30,6 +30,9 @@ st.markdown("""
 
 st.title("Patientenliste")
 
+#Add Logo
+st.sidebar.image("./img/logo_lang.png", width=300)
+
 # Sidebar: Patientensuche
 st.sidebar.header("Patienten")
 search = st.sidebar.text_input("Suche nach Name oder ID")
