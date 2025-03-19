@@ -56,13 +56,13 @@ if not patients.empty:
     patients["age"] = patients["geb"].apply(calculate_age)
 
 # Back button in top left corner
-st.markdown("""
-    <div style="position: absolute; top: 0.5rem; left: 1rem; z-index: 1000;">
-        <a href="/" style="text-decoration: none; color: white; font-size: 24px;">
-            ← Zurück
-        </a>
-    </div>
-""", unsafe_allow_html=True)
+# st.markdown("""
+#     <div style="position: absolute; top: 0.5rem; left: 1rem; z-index: 1000;">
+#         <a href="/" style="text-decoration: none; color: white; font-size: 24px;">
+#             ← Zurück
+#         </a>
+#     </div>
+# """, unsafe_allow_html=True)
 
 st.title("Patientenliste")
 
