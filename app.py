@@ -83,7 +83,7 @@ if prompt := st.sidebar.chat_input("Say something"):
     messages.chat_message("user").write(prompt)
     messages.chat_message("assistant").write(f"Echo: {prompt}")
 
-# Falls ein Patient ausgewählt wurde, entsprechende Details abrufen
+# Falls ein Patient ausgewählt wurde, entsprechende DetaiFls abrufen
 if selected_patient_info:
     selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
     selected_patient = patients[patients["pat_id"] == selected_patient_id].iloc[0]
@@ -312,34 +312,54 @@ if selected_patient_info:
         st.subheader("Sicherheitsdaten")
         
         # Treuhand-Transaktionen
-        if 'treuhand_transaktionen' in db_data:
-            transactions = db_data['treuhand_transaktionen']
+        if 'trust_account_transactions' in db_data:
+            transactions = db_data['trust_account_transactions']
             patient_transactions = transactions[transactions['resident_id'] == selected_patient_id]
             
             if not patient_transactions.empty:
+                # Convert transaction_date to datetime and sort chronologically
+                try:
+                    patient_transactions['transaction_date'] = pd.to_datetime(patient_transactions['transaction_date'])
+                    patient_transactions = patient_transactions.sort_values('transaction_date')
+                except:
+                    pass  # If conversion fails, use as is
+                    
                 st.subheader("Treuhand-Transaktionen")
-                st.dataframe(patient_transactions[['date', 'amount', 'description']], use_container_width=True)
+                st.dataframe(patient_transactions[['transaction_date', 'amount', 'description']], use_container_width=True)
                 
                 # Visualize transactions over time
-                fig = px.line(patient_transactions, x='date', y='amount', title="Finanzielle Transaktionen", markers=True)
+                fig = px.line(patient_transactions, x='transaction_date', y='amount', title="Finanzielle Transaktionen", markers=True)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Keine Transaktionsdaten verfügbar.")
         
         # Ausgehzeiten
-        if 'ausgehzeiten' in db_data:
-            exit_times = db_data['ausgehzeiten']
-            patient_exit_times = exit_times[exit_times['resident_id'] == selected_patient_id]
+        if 'Ein_aus' in db_data:
+            exit_data = db_data['Ein_aus']
+            # Filter for resident_id and where ausgang = 1 (indicating exit events)
+            patient_exit_data = exit_data[
+                (exit_data['pat_id'] == selected_patient_id) & 
+                (exit_data['ausgang'] == 1)
+            ]
             
-            if not patient_exit_times.empty:
+            if not patient_exit_data.empty:
+                # Convert zeitstempel to datetime format and sort by date
+                try:
+                    patient_exit_data['zeitstempel'] = pd.to_datetime(patient_exit_data['zeitstempel'])
+                    patient_exit_data = patient_exit_data.sort_values('zeitstempel')
+                except:
+                    pass  # If conversion fails, use as is
+                    
                 st.subheader("Ausgehzeiten")
-                st.dataframe(patient_exit_times[['exit_time', 'entry_time']], use_container_width=True)
+                st.dataframe(patient_exit_data[['zeitstempel']], use_container_width=True)
                 
                 # Visualization
-                fig = px.histogram(patient_exit_times, x='exit_time', title="Verteilung der Ausgehzeiten", nbins=20)
+                fig = px.histogram(patient_exit_data, x='zeitstempel', title="Verteilung der Ausgehzeiten", nbins=20)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Keine Ausgehzeiten-Daten verfügbar.")
+        else:
+            st.info("Keine Ausgehzeiten-Daten verfügbar.")
         
         # Smart-Home-Daten
         if 'smart_home' in db_data:
