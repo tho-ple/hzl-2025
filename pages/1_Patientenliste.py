@@ -28,10 +28,15 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+
 st.title("Patientenliste")
 
+#Add Logo
+st.sidebar.image("logo.png", width=300)
 # Sidebar: Patientensuche
 st.sidebar.header("Patienten")
+
+
 search = st.sidebar.text_input("Suche (Name oder ID)")
 
 # Filter Patienten basierend auf Suche
