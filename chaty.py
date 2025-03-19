@@ -61,12 +61,17 @@ def query_database(query):
     except Exception as e:
         return f"Database error: {str(e)}"
 
-def generate_response(prompt, model="gpt-3.5-turbo"):
+def generate_response(prompt, model="gpt-3.5-turbo", concise=False):
+    """Generate a response from OpenAI with option for concise output"""
     try:
+        system_message = "You are an analyst who examines healthcare database information and provides clear insights and conclusions. Always respond in the same language as the user's question."
+        if concise:
+            system_message += " Keep your responses brief and focused only on the most important findings. Limit to 2-3 short paragraphs maximum."
+        
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an analyst who examines healthcare database information and provides clear insights and conclusions."},
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -134,7 +139,7 @@ def smart_research_chatbot(question):
         query_results = query_database(sql_query)
         
         # Step 4: Create a prompt with just the relevant data
-        prompt = f"""Based on the following database structure and query results, please answer this question: "{question}"
+        prompt = f"""Based on the following database structure and query results, please answer this question concisely: "{question}"
         
         Database structure:
         {json.dumps(db_structure, indent=2)}
@@ -145,14 +150,15 @@ def smart_research_chatbot(question):
         Query results:
         {json.dumps(query_results, indent=2)}
         
-        Please provide a detailed analysis based on this data.
+        Provide ONLY the most important insights and direct answers. Be brief and to the point.
+        Avoid lengthy explanations, background information, or repetition.
         """
         
-        # Step 5: Generate the response
-        return generate_response(prompt)
+        # Step 5: Generate the concise response
+        return generate_response(prompt, concise=True)
     except Exception as e:
         return f"Error executing query: {str(e)}"
-
+    
 # Example usage
 if __name__ == "__main__":
     question = "Which diet is the best one for sleep quality?"
