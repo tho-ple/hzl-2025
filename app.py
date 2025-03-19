@@ -432,8 +432,7 @@ if selected_patient_info:
                             duration_minutes = (entry_time - exit_time).total_seconds() / 60
                             
                             # Skip if duration is more than 12 hours (720 minutes) - likely vacation
-                            if 1==1:
-                            # if duration_minutes <= 720:
+                            if duration_minutes <= 720:
                                 # Format duration as hours if more than 60 minutes
                                 if duration_minutes > 60:
                                     duration_str = f"{duration_minutes / 60:.1f} Stunden"
