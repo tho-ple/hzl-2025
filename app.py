@@ -408,27 +408,70 @@ if selected_patient_info:
         # Ausgehzeiten
         if 'Ein_aus' in db_data:
             exit_data = db_data['Ein_aus']
-            # Filter for resident_id and where ausgang = 1 (indicating exit events)
-            patient_exit_data = exit_data[
-                (exit_data['pat_id'] == selected_patient_id) & 
-                (exit_data['ausgang'] == 1)
-            ]
             
-            if not patient_exit_data.empty:
-                # Convert zeitstempel to datetime format and sort by date
-                try:
-                    patient_exit_data['zeitstempel'] = pd.to_datetime(patient_exit_data['zeitstempel'])
-                    patient_exit_data = patient_exit_data.sort_values('zeitstempel')
-                except:
-                    pass  # If conversion fails, use as is
-                    
-                st.subheader("Ausgehzeiten")
-                st.dataframe(patient_exit_data[['zeitstempel']], use_container_width=True)
+            # Convert all timestamps to datetime for the patient
+            try:
+                all_patient_data = exit_data[exit_data['pat_id'] == selected_patient_id].copy()
+                all_patient_data['zeitstempel'] = pd.to_datetime(all_patient_data['zeitstempel'])
                 
-                # Visualization
-                fig = px.histogram(patient_exit_data, x='zeitstempel', title="Verteilung der Ausgehzeiten", nbins=20)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
+                # Separate exit and entry events
+                exit_events = all_patient_data[all_patient_data['ausgang'] == 1]
+                entry_events = all_patient_data[all_patient_data['ausgang'] == 0]
+                
+                # Calculate durations by matching exits with next entries
+                night_exits = []
+                
+                for _, exit_event in exit_events.iterrows():
+                    exit_time = exit_event['zeitstempel']
+                    # Check if exit time is between 21:00 and 06:00
+                    if exit_time.hour >= 21 or exit_time.hour < 6:
+                        # Find the next entry after this exit
+                        next_entries = entry_events[entry_events['zeitstempel'] > exit_time]
+                        if not next_entries.empty:
+                            entry_time = next_entries.iloc[0]['zeitstempel']
+                            duration_minutes = (entry_time - exit_time).total_seconds() / 60
+                            
+                            # Skip if duration is more than 12 hours (720 minutes) - likely vacation
+                            if 1==1:
+                            # if duration_minutes <= 720:
+                                # Format duration as hours if more than 60 minutes
+                                if duration_minutes > 60:
+                                    duration_str = f"{duration_minutes / 60:.1f} Stunden"
+                                else:
+                                    duration_str = f"{duration_minutes:.1f} Minuten"
+                                
+                                night_exits.append({
+                                    'Ausgang': exit_time,
+                                    'Eingang': entry_time,
+                                    'Dauer': duration_str,
+                                    'Dauer_Minuten': duration_minutes  # Keep raw minutes for calculations
+                                })
+                
+                # Create DataFrame with the night exits and their durations
+                if night_exits:
+                    night_exits_df = pd.DataFrame(night_exits)
+                    night_exits_df = night_exits_df.sort_values('Ausgang')
+                    
+                    st.subheader("Nächtliche Ausgehzeiten (21:00-6:00)")
+                    # Show the formatted duration column but not the raw minutes column
+                    display_df = night_exits_df[['Ausgang', 'Eingang', 'Dauer']]
+                    st.dataframe(display_df, use_container_width=True)
+                    
+                    # Visualization of night exits
+                    fig = px.histogram(night_exits_df, x='Ausgang', title="Verteilung der nächtlichen Ausgehzeiten", nbins=20)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Display average duration outside at night
+                    avg_duration = night_exits_df['Dauer_Minuten'].mean()
+                    if avg_duration > 60:
+                        avg_display = f"{avg_duration / 60:.1f} Stunden"
+                    else:
+                        avg_display = f"{avg_duration:.1f} Minuten"
+                    st.metric("Durchschnittliche Dauer draußen (nachts)", avg_display)
+                else:
+                    st.info("Keine nächtlichen Ausgehzeiten (21:00-6:00) verfügbar.")
+            except Exception as e:
+                st.error(f"Fehler bei der Analyse der Ausgehzeiten: {str(e)}")
                 st.info("Keine Ausgehzeiten-Daten verfügbar.")
         else:
             st.info("Keine Ausgehzeiten-Daten verfügbar.")
