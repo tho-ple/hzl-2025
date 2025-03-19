@@ -8,6 +8,7 @@ import os
 from PIL import Image
 import base64
 from io import BytesIO
+import streamlit_push_notifications
 from utils import setup_page_config, load_database_data, calculate_social_isolation_risk, calculate_fall_risk
 
 # Setup page configuration
@@ -122,6 +123,13 @@ if selected_patient_info:
     # Calculate all status metrics
     isolation_risk, isolation_factors = calculate_social_isolation_risk(selected_patient_id)
     fall_risk, fall_factors = calculate_fall_risk(selected_patient_id)
+
+    if isolation_risk > 65:
+        streamlit_push_notifications.send_push(title="Akute Isolations Gefahr",
+                body=f"Der Bewohner {selected_patient['vorname']} {selected_patient['nachname']}, zeigt ein starkes Risiko für Vereinsamung .",
+                icon_path="./img/warning.png",
+                #sound_path="https://example.com/your_sound.mp3",
+                tag="Isolations Gefahr")
     
     # Display four key metrics in a row
     col1, col2, col3, col4 = st.columns(4)
