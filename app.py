@@ -275,7 +275,25 @@ if selected_patient_info:
                         })
                 
                 if activity_data:
-                    st.dataframe(pd.DataFrame(activity_data))
+                    # Create DataFrame
+                    activity_df = pd.DataFrame(activity_data)
+                    
+                    # Define styling function to highlight rows based on note content
+                    def highlight_activity_notes(row):
+                        if isinstance(row['Notizen'], str):
+                            if "Did not feel well" in row['Notizen']:
+                                return ['background-color: rgba(255, 0, 0, 0.2)'] * len(row)
+                            elif "Enjoyed the activity" in row['Notizen']:
+                                return ['background-color: rgba(0, 255, 0, 0.2)'] * len(row)
+                        return [''] * len(row)
+                    
+                    # Apply styling and display dataframe
+                    st.dataframe(
+                        activity_df.style.apply(highlight_activity_notes, axis=1),
+                        use_container_width=True
+                    )
+                else:
+                    st.write("Keine Aktivitätsdaten verfügbar.")
             else:
                 st.write("Keine Aktivitätsdaten verfügbar.")
     
@@ -397,9 +415,23 @@ if selected_patient_info:
                     pass  # If conversion fails, use as is
                     
                 st.subheader("Treuhand-Transaktionen")
-                st.dataframe(patient_transactions[['transaction_date', 'amount', 'description']], use_container_width=True)
                 
-                # Visualize transactions over time
+                # Define styling function to highlight transactions based on amount
+                def highlight_transactions(row):
+                    if row['amount'] < 0:  # Expense (negative amount)
+                        return ['background-color: rgba(255, 0, 0, 0.2)'] * len(row)
+                    elif row['amount'] > 0:  # Income (positive amount)
+                        return ['background-color: rgba(0, 255, 0, 0.2)'] * len(row)
+                    return [''] * len(row)
+                
+                # Apply styling and display dataframe
+                st.dataframe(
+                    patient_transactions[['transaction_date', 'amount', 'description']]
+                    .style.apply(highlight_transactions, axis=1),
+                    use_container_width=True
+                )
+                
+                # Visualize transactions over time (keep this part unchanged)
                 fig = px.line(patient_transactions, x='transaction_date', y='amount', title="Finanzielle Transaktionen", markers=True)
                 st.plotly_chart(fig, use_container_width=True)
             else:
