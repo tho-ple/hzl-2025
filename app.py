@@ -1,20 +1,26 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 from utils import setup_page_config, load_database_data
 
 # Setup page configuration
 setup_page_config()
 
-# Load patient data from database
+# Load database data
 db_data = load_database_data()
 patients = db_data.get('patient', pd.DataFrame())
 
-# Berechnung des Alters aus dem Geburtsdatum (`geb`)
+# Berechnung des Alters aus dem Geburtsdatum
 def calculate_age(birthdate):
     today = datetime.today()
-    birthdate = datetime.strptime(birthdate, "%Y-%m-%d")  # Falls Format anders, anpassen
-    return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    try:
+        birthdate = datetime.strptime(birthdate, "%Y-%m-%d")
+        return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    except:
+        return None
 
 if not patients.empty:
     patients["age"] = patients["geb"].apply(calculate_age)
@@ -30,8 +36,7 @@ st.markdown("""
 
 st.title("Patientenliste")
 
-
-#Add Logo
+# Add Logo
 st.sidebar.image("./img/logo_lang.png", width=250)
 
 # Sidebar: Patientensuche
@@ -80,32 +85,178 @@ if selected_patient_info:
 
     st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
 
-    col1, col2 = st.columns(2)
+    # Tabs für unterschiedliche Ansichten
+    tab1, tab2 = st.tabs(["Patienten-Informationen", "Datenvisualisierung"])
+    
+    with tab1:
+        col1, col2 = st.columns(2)
 
-    with col1:
-        st.subheader("Persönliche Informationen")
-        st.write(f"**Alter:** {selected_patient['age']} Jahre")
-        st.write(f"**Geschlecht:** {selected_patient['geschlecht']}")
-        st.write(f"**Betreuer-ID:** {selected_patient['betreuer_id']}")
+        with col1:
+            st.subheader("Persönliche Informationen")
+            st.write(f"**Alter:** {selected_patient['age']} Jahre")
+            st.write(f"**Geschlecht:** {selected_patient['geschlecht']}")
+            st.write(f"**Betreuer-ID:** {selected_patient['betreuer_id']}")
+            
+            # Finde zusätzliche Informationen aus health_vitals
+            if 'health_vitals' in db_data:
+                # Map patient ID to resident ID (if needed)
+                # This is needed because health_vitals uses resident_id
+                resident_id = selected_patient_id  # Assuming they match
+                
+                vitals = db_data['health_vitals']
+                patient_vitals = vitals[vitals['resident_id'] == resident_id]
+                
+                if not patient_vitals.empty:
+                    latest_vitals = patient_vitals.iloc[-1]
+                    st.subheader("Neueste Vitalwerte")
+                    st.write(f"**Herzfrequenz:** {latest_vitals['heart_rate']} bpm")
+                    st.write(f"**Blutdruck:** {latest_vitals['blood_pressure_systolic']}/{latest_vitals['blood_pressure_diastolic']} mmHg")
+                    st.write(f"**Gemessen am:** {latest_vitals['measurement_time']}")
 
-    with col2:
-        st.subheader("Adresse")
-        st.write(f"**Wohnort:** {selected_patient['adresse']}")
+        with col2:
+            st.subheader("Zimmerdaten")
+            # Get room information
+            if 'raum' in db_data:
+                rooms = db_data['raum']
+                patient_room = rooms[rooms['pat_id'] == selected_patient_id]
+                if not patient_room.empty:
+                    room_info = patient_room.iloc[0]
+                    st.write(f"**Zimmer-Nr:** {room_info['raum_nr']}")
+                    st.write(f"**Belegt seit:** {room_info['belegt_seit']}")
+            
+            # Show allergies if available
+            if 'allergies' in db_data:
+                allergies = db_data['allergies']
+                patient_allergies = allergies[allergies['resident_id'] == resident_id]
+                if not patient_allergies.empty:
+                    st.subheader("Allergien")
+                    for _, allergy in patient_allergies.iterrows():
+                        st.write(f"**{allergy['allergy_type']}:** {allergy['allergy_name']} ({allergy['severity']})")
 
-    # Gesundheitsdaten anzeigen
-    st.subheader("Gesundheitshistorie")
-    if 'health_monitoring' in db_data:
-        health_data = db_data['health_monitoring']
-        patient_health = health_data[health_data['pat_id'] == selected_patient['pat_id']]
-        if not patient_health.empty:
-            st.dataframe(patient_health)
+        # Aktivitäten anzeigen
+        if 'activity_participation' in db_data and 'activities' in db_data:
+            st.subheader("Aktivitäten")
+            activities = db_data['activities']
+            participation = db_data['activity_participation']
+            
+            patient_activities = participation[participation['resident_id'] == resident_id]
+            
+            if not patient_activities.empty:
+                # Join with activities to get names
+                activity_data = []
+                for _, part in patient_activities.iterrows():
+                    act_id = part['activity_id']
+                    act = activities[activities['id'] == act_id]
+                    if not act.empty:
+                        activity_data.append({
+                            "Datum": part['date'],
+                            "Aktivität": act.iloc[0]['name'],
+                            "Teilgenommen": "Ja" if part['attended'] == 1 else "Nein",
+                            "Notizen": part['notes']
+                        })
+                
+                if activity_data:
+                    st.dataframe(pd.DataFrame(activity_data))
+            else:
+                st.write("Keine Aktivitätsdaten verfügbar.")
+    
+    with tab2:
+        st.subheader("Gesundheitsdaten-Visualisierung")
+        
+        # Health vitals visualization
+        if 'health_vitals' in db_data:
+            vitals = db_data['health_vitals']
+            patient_vitals = vitals[vitals['resident_id'] == resident_id]
+            
+            if not patient_vitals.empty:
+                # Data selection
+                metric_options = {
+                    "Herzfrequenz": "heart_rate",
+                    "Blutdruck (systolisch)": "blood_pressure_systolic",
+                    "Blutdruck (diastolisch)": "blood_pressure_diastolic"
+                }
+                
+                selected_metric = st.selectbox(
+                    "Metrik auswählen:", 
+                    list(metric_options.keys())
+                )
+                
+                # Convert measurement_time to datetime
+                try:
+                    patient_vitals['measurement_time'] = pd.to_datetime(patient_vitals['measurement_time'])
+                    patient_vitals = patient_vitals.sort_values('measurement_time')
+                except:
+                    pass  # If conversion fails, use as is
+                
+                # Line chart for selected metric
+                fig = px.line(
+                    patient_vitals, 
+                    x="measurement_time", 
+                    y=metric_options[selected_metric],
+                    title=f"{selected_metric} Trend",
+                    markers=True
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Statistics
+                avg_value = patient_vitals[metric_options[selected_metric]].mean()
+                max_value = patient_vitals[metric_options[selected_metric]].max()
+                min_value = patient_vitals[metric_options[selected_metric]].min()
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Durchschnitt", f"{avg_value:.1f}")
+                col2.metric("Maximum", f"{max_value}")
+                col3.metric("Minimum", f"{min_value}")
+                
+                # Add histogram
+                fig2 = px.histogram(
+                    patient_vitals, 
+                    x=metric_options[selected_metric],
+                    nbins=10,
+                    title=f"{selected_metric} Verteilung"
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                
+                # Export options
+                st.subheader("Datenexport")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button(
+                        "CSV-Daten exportieren",
+                        data=patient_vitals.to_csv(index=False).encode('utf-8'),
+                        file_name=f"{selected_patient['nachname']}_{selected_patient['vorname']}_vitalwerte.csv",
+                        mime="text/csv"
+                    )
+                
+                with col2:
+                    # Sleep data if available
+                    if 'sleep_quality' in db_data:
+                        sleep_data = db_data['sleep_quality']
+                        patient_sleep = sleep_data[sleep_data['resident_id'] == resident_id]
+                        
+                        if not patient_sleep.empty:
+                            st.download_button(
+                                "Schlafqualitätsdaten exportieren",
+                                data=patient_sleep.to_csv(index=False).encode('utf-8'),
+                                file_name=f"{selected_patient['nachname']}_{selected_patient['vorname']}_schlaf.csv",
+                                mime="text/csv"
+                            )
+            else:
+                st.info("Keine Gesundheitsdaten für die Visualisierung verfügbar.")
+
+            # Add doctor visits if available
+            if 'doctor_visits' in db_data:
+                visits = db_data['doctor_visits']
+                patient_visits = visits[visits['resident_id'] == resident_id]
+                
+                if not patient_visits.empty:
+                    st.subheader("Arztbesuche")
+                    st.dataframe(
+                        patient_visits[['visit_date', 'doctor_name', 'reason', 'follow_up_date']],
+                        use_container_width=True
+                    )
         else:
-            st.write("Keine Gesundheitsdaten verfügbar.")
-    else:
-        st.write("Keine Gesundheitsdaten verfügbar.")
-
-else:
-    st.info("Wähle einen Patienten aus der Seitenleiste.")
+            st.info("Keine Gesundheitsdaten in der Datenbank gefunden.")
 
 # Footer
 st.markdown("---")
