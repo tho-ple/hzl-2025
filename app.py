@@ -1,226 +1,109 @@
-#######################
-# Import libraries
 import streamlit as st
 import pandas as pd
-import altair as alt
-import plotly.express as px
-from datetime import datetime, timedelta
-import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-import seaborn as sns
-from scipy import stats
-import sqlite3
-import os
-from utils import setup_page_config, load_data
+from datetime import datetime
+from utils import setup_page_config, load_database_data
 
-#######################
-# Page configuration
+# Setup page configuration
 setup_page_config()
 
-#######################
-# Database Functions
-@st.cache_data
-def load_database_data():
-    try:
-        conn = sqlite3.connect('hauszumleben.db')
-        cursor = conn.cursor()
-        
-        # Get all tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
-        
-        # Load data from each table
-        db_data = {}
-        for table in tables:
-            table_name = table[0]
-            df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
-            db_data[table_name] = df
-        
-        conn.close()
-        return db_data
-    except Exception as e:
-        st.error(f"Fehler beim Laden der Datenbank: {str(e)}")
-        return None
+# Load patient data from database
+db_data = load_database_data()
+patients = db_data.get('patient', pd.DataFrame())
 
-#######################
-# Load data
-residents, meal_orders, health_monitoring, menu_items, weather_data, db_data = load_data()
+# Berechnung des Alters aus dem Geburtsdatum (`geb`)
+def calculate_age(birthdate):
+    today = datetime.today()
+    birthdate = datetime.strptime(birthdate, "%Y-%m-%d")  # Falls Format anders, anpassen
+    return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
 
-#######################
-# Weather Correlation Functions
-@st.cache_data
-def analyze_weather_correlation(meal_orders, weather_data, menu_items):
-    try:
-        # Merge meal orders with weather data
-        meal_orders['date'] = pd.to_datetime(meal_orders['date'])
-        weather_data['date'] = pd.to_datetime(weather_data['date'])
-        merged_data = pd.merge(meal_orders, weather_data, on='date', how='inner')
-        
-        if len(merged_data) == 0:
-            st.warning("Keine übereinstimmenden Daten zwischen Mahlzeiten und Wetter gefunden.")
-            return None, None
-        
-        # Calculate daily consumption by meal type
-        daily_consumption = merged_data.groupby(['date', 'meal_type'])['actual_consumption'].mean().reset_index()
-        
-        # Merge with weather data
-        weather_consumption = pd.merge(daily_consumption, weather_data, on='date')
-        
-        # Calculate correlations for each meal type
-        correlations = []
-        for meal_type in weather_consumption['meal_type'].unique():
-            meal_data = weather_consumption[weather_consumption['meal_type'] == meal_type]
-            
-            if len(meal_data) < 2:
-                continue
-                
-            # Calculate correlations with weather parameters
-            temp_corr = stats.pearsonr(meal_data['temperature'], meal_data['actual_consumption'])[0]
-            precip_corr = stats.pearsonr(meal_data['precipitation'], meal_data['actual_consumption'])[0]
-            humidity_corr = stats.pearsonr(meal_data['humidity'], meal_data['actual_consumption'])[0]
-            
-            correlations.append({
-                'meal_type': meal_type,
-                'temperature_correlation': temp_corr,
-                'precipitation_correlation': precip_corr,
-                'humidity_correlation': humidity_corr
-            })
-        
-        correlations_df = pd.DataFrame(correlations)
-        return weather_consumption, correlations_df
-    
-    except Exception as e:
-        st.error(f"Fehler bei der Wetterkorrelationsanalyse: {str(e)}")
-        return None, None
+if not patients.empty:
+    patients["age"] = patients["geb"].apply(calculate_age)
 
-#######################
-# Anomaly Detection Functions
-@st.cache_data
-def detect_consumption_anomalies(meal_orders, residents):
-    # Merge meal orders with resident data
-    merged_data = pd.merge(meal_orders, residents, on='resident_id')
-    
-    # Calculate consumption statistics per resident
-    resident_stats = merged_data.groupby('resident_id').agg({
-        'actual_consumption': ['mean', 'std', 'count']
-    }).reset_index()
-    
-    # Flatten column names
-    resident_stats.columns = ['resident_id', 'mean_consumption', 'std_consumption', 'meal_count']
-    
-    # Prepare features for anomaly detection
-    features = resident_stats[['mean_consumption', 'std_consumption']].values
-    scaler = StandardScaler()
-    features_scaled = scaler.fit_transform(features)
-    
-    # Apply Isolation Forest
-    iso_forest = IsolationForest(contamination=0.1, random_state=42)
-    predictions = iso_forest.fit_predict(features_scaled)
-    
-    # Add anomaly predictions to resident stats
-    resident_stats['is_anomaly'] = predictions == -1
-    
-    # Merge back with resident data
-    anomalies = pd.merge(resident_stats, residents, on='resident_id')
-    return anomalies
-
-@st.cache_data
-def detect_meal_pattern_anomalies(meal_orders):
-    # Calculate daily consumption patterns
-    daily_patterns = meal_orders.groupby(['date', 'meal_type'])['actual_consumption'].mean().reset_index()
-    
-    # Calculate z-scores for each meal type
-    meal_stats = daily_patterns.groupby('meal_type').agg({
-        'actual_consumption': ['mean', 'std']
-    }).reset_index()
-    
-    # Flatten column names
-    meal_stats.columns = ['meal_type', 'mean_consumption', 'std_consumption']
-    
-    # Calculate z-scores
-    daily_patterns = pd.merge(daily_patterns, meal_stats, on='meal_type')
-    daily_patterns['z_score'] = (daily_patterns['actual_consumption'] - daily_patterns['mean_consumption']) / daily_patterns['std_consumption']
-    
-    # Identify anomalies (z-score > 2 or < -2)
-    daily_patterns['is_anomaly'] = abs(daily_patterns['z_score']) > 2
-    
-    return daily_patterns
-
-#######################
-# Main content
-st.title("Häuser zum Leben - Intelligentes Pflegemanagement")
-
-# Overview section
-st.header("Übersicht")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Gesamtbewohner", len(residents))
-    
-with col2:
-    avg_age = residents['age'].mean()
-    min_age = residents['age'].min()
-    max_age = residents['age'].max()
-    st.metric("Durchschnittsalter", f"{avg_age:.1f} Jahre")
-    st.metric("Jüngster Bewohner", f"{min_age} Jahre")
-    st.metric("Ältester Bewohner", f"{max_age} Jahre")
-    
-with col3:
-    care_levels = residents['care_level'].value_counts()
-    st.metric("Durchschnittlicher Pflegegrad", f"{residents['care_level'].mean():.1f}")
-
-# Quick Links
-st.header("Schnellzugriff")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.markdown("""
-        <a href="pages/1_Ernährungsanalyse.py" target="_self">
-            <div style="text-align: center; padding: 20px; background-color: #1f1f1f; border-radius: 10px;">
-                <h3>Ernährungsanalyse</h3>
-                <p>Analyse der Mahlzeitenverbräuche</p>
-            </div>
+# Back button in top left corner
+st.markdown("""
+    <div style="position: absolute; top: 0.5rem; left: 1rem; z-index: 1000;">
+        <a href="/" style="text-decoration: none; color: white; font-size: 24px;">
+            ← Zurück
         </a>
-    """, unsafe_allow_html=True)
+    </div>
+""", unsafe_allow_html=True)
 
-with col2:
-    st.markdown("""
-        <a href="pages/2_Gesundheitsmonitoring.py" target="_self">
-            <div style="text-align: center; padding: 20px; background-color: #1f1f1f; border-width: 1px; border-color: #333; border-style: solid; border-radius: 10px;">
-                <h3>Gesundheitsmonitoring</h3>
-                <p>Überwachung der Vitalparameter</p>
-            </div>
-        </a>
-    """, unsafe_allow_html=True)
+st.title("Patientenliste")
 
-with col3:
-    st.markdown("""
-        <a href="pages/3_Waste_Management.py" target="_self">
-            <div style="text-align: center; padding: 20px; background-color: #1f1f1f; border-width: 1px; border-color: #333; border-style: solid; border-radius: 10px;">
-                <h3>Waste Management</h3>
-                <p>Analyse der Lebensmittelabfälle</p>
-            </div>
-        </a>
-    """, unsafe_allow_html=True)
+# Sidebar: Patientensuche
+st.sidebar.header("Patienten")
+search = st.sidebar.text_input("Suche nach Name oder ID")
 
-with col4:
-    st.markdown("""
-        <a href="pages/4_Anomalieerkennung.py" target="_self">
-            <div style="text-align: center; padding: 20px; background-color: #1f1f1f; border-width: 1px; border-color: #333; border-style: solid; border-radius: 10px;">
-                <h3>Anomalieerkennung</h3>
-                <p>Erkennung von Auffälligkeiten</p>
-            </div>
-        </a>
-    """, unsafe_allow_html=True)
+# Filter Patienten basierend auf Suche
+filtered_patients = patients.copy()
+if search:
+    filtered_patients = filtered_patients[
+        (filtered_patients["pat_id"].astype(str).str.contains(search, case=False)) |
+        (filtered_patients["vorname"].str.contains(search, case=False)) |
+        (filtered_patients["nachname"].str.contains(search, case=False))
+    ]
+
+# Patientenliste in Sidebar als Radio-Buttons anzeigen
+st.sidebar.subheader("Wähle einen Patienten")
+patient_list = [
+    f"{row['vorname']} {row['nachname']} (ID: {row['pat_id']})"
+    for _, row in filtered_patients.iterrows()
+]
+
+# Add custom CSS for larger patient list items
+st.markdown("""
+    <style>
+    /* Larger text for the patient list items */
+    .sidebar .radio label {
+        font-size: 22px;  /* Increase font size */
+        line-height: 2.2rem;  /* More space between options */
+        padding: 10px; /* Add some padding around each item */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Show the patients as radio buttons in the sidebar
+selected_patient_info = st.sidebar.radio("Patient auswählen:", patient_list, index=0 if patient_list else None)
+
+# Falls ein Patient ausgewählt wurde, entsprechende Details abrufen
+if selected_patient_info:
+    selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
+    selected_patient = patients[patients["pat_id"] == selected_patient_id].iloc[0]
+
+    st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Persönliche Informationen")
+        st.write(f"**Alter:** {selected_patient['age']} Jahre")
+        st.write(f"**Geschlecht:** {selected_patient['geschlecht']}")
+        st.write(f"**Betreuer-ID:** {selected_patient['betreuer_id']}")
+
+    with col2:
+        st.subheader("Adresse")
+        st.write(f"**Wohnort:** {selected_patient['adresse']}")
+
+    # Gesundheitsdaten anzeigen
+    st.subheader("Gesundheitshistorie")
+    if 'health_monitoring' in db_data:
+        health_data = db_data['health_monitoring']
+        patient_health = health_data[health_data['pat_id'] == selected_patient['pat_id']]
+        if not patient_health.empty:
+            st.dataframe(patient_health)
+        else:
+            st.write("Keine Gesundheitsdaten verfügbar.")
+    else:
+        st.write("Keine Gesundheitsdaten verfügbar.")
+
+else:
+    st.info("Wähle einen Patienten aus der Seitenleiste.")
 
 # Footer
 st.markdown("---")
 st.markdown("""
     <div style='text-align: center'>
         <p>Häuser zum Leben - Intelligentes Pflegemanagement System</p>
-        <p>© 2024 - Demo Version</p>
+        <p>© 2025 - Demo Version</p>
     </div>
 """, unsafe_allow_html=True)
-
-
