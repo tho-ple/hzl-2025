@@ -30,8 +30,9 @@ st.markdown("""
 
 st.title("Patientenliste")
 
+
 #Add Logo
-st.sidebar.image("./img/logo_lang.png", width=300)
+st.sidebar.image("./img/logo_lang.png", width=250)
 
 # Sidebar: Patientensuche
 st.sidebar.header("Patienten")
@@ -57,6 +58,10 @@ patient_list = [
 st.markdown("""
     <style>
     /* Larger text for the patient list items */
+    .st-emotion-cache-16txtl3 {
+    padding: 6rem 1.5rem;
+    padding-top: 50px;
+    }
     .sidebar .radio label {
         font-size: 22px;  /* Increase font size */
         line-height: 2.2rem;  /* More space between options */
