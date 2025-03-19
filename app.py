@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-from utils import setup_page_config, load_database_data
+from utils import setup_page_config, load_database_data, calculate_social_isolation_risk, calculate_fall_risk
 
 # Setup page configuration
 setup_page_config()
@@ -85,6 +85,48 @@ if selected_patient_info:
 
     st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
 
+    # Calculate all status metrics
+    isolation_risk, isolation_factors = calculate_social_isolation_risk(selected_patient_id)
+    fall_risk, fall_factors = calculate_fall_risk(selected_patient_id)
+    
+    # Display four key metrics in a row
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        # Social Isolation Risk
+        st.metric(
+            "Soziale Isolation",
+            f"{isolation_risk}%",
+            delta="Risiko" if isolation_risk > 50 else "Normal",
+            delta_color="inverse"
+        )
+        if isolation_risk > 50:
+            st.markdown(f"""
+            <div style='background-color: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: 5px;'>
+                <h6>Risikofaktoren:</h6>
+                <ul>{''.join([f'<li>{factor}</li>' for factor in isolation_factors])}</ul>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col2:
+        # Fall Risk
+        st.metric(
+            "Sturzrisiko",
+            f"{fall_risk}%",
+            delta="Erhöht" if fall_risk > 50 else "Gering",
+            delta_color="inverse"
+        )
+        if fall_risk > 50:
+            st.markdown(f"""
+            <div style='background-color: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: 5px;'>
+                <h6>Risikofaktoren:</h6>
+                <ul>{''.join([f'<li>{factor}</li>' for factor in fall_factors])}</ul>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Add a divider
+    st.markdown("---")
+    
     # Tabs für unterschiedliche Ansichten
     tab1, tab2 = st.tabs(["Patienten-Informationen", "Datenvisualisierung"])
     
