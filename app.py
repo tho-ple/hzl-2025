@@ -86,7 +86,7 @@ if selected_patient_info:
     st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
 
     # Tabs für unterschiedliche Ansichten
-    tab1, tab2 = st.tabs(["Patienten-Informationen", "Datenvisualisierung"])
+    tab1, tab2, tab3 = st.tabs(["Patienten-Informationen", "Datenvisualisierung", "Sicherheitsdaten"])
     
     with tab1:
         col1, col2 = st.columns(2)
@@ -257,6 +257,59 @@ if selected_patient_info:
                     )
         else:
             st.info("Keine Gesundheitsdaten in der Datenbank gefunden.")
+
+#tab3 Sicherheitsdaten 
+
+
+    with tab3:
+        st.subheader("Sicherheitsdaten")
+        
+        # Treuhand-Transaktionen
+        if 'treuhand_transaktionen' in db_data:
+            transactions = db_data['treuhand_transaktionen']
+            patient_transactions = transactions[transactions['resident_id'] == selected_patient_id]
+            
+            if not patient_transactions.empty:
+                st.subheader("Treuhand-Transaktionen")
+                st.dataframe(patient_transactions[['date', 'amount', 'description']], use_container_width=True)
+                
+                # Visualize transactions over time
+                fig = px.line(patient_transactions, x='date', y='amount', title="Finanzielle Transaktionen", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Keine Transaktionsdaten verfügbar.")
+        
+        # Ausgehzeiten
+        if 'ausgehzeiten' in db_data:
+            exit_times = db_data['ausgehzeiten']
+            patient_exit_times = exit_times[exit_times['resident_id'] == selected_patient_id]
+            
+            if not patient_exit_times.empty:
+                st.subheader("Ausgehzeiten")
+                st.dataframe(patient_exit_times[['exit_time', 'entry_time']], use_container_width=True)
+                
+                # Visualization
+                fig = px.histogram(patient_exit_times, x='exit_time', title="Verteilung der Ausgehzeiten", nbins=20)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Keine Ausgehzeiten-Daten verfügbar.")
+        
+        # Smart-Home-Daten
+        if 'smart_home' in db_data:
+            smart_home_data = db_data['smart_home']
+            patient_smart_home = smart_home_data[smart_home_data['resident_id'] == selected_patient_id]
+            
+            if not patient_smart_home.empty:
+                st.subheader("Smart-Home Überwachung")
+                st.dataframe(patient_smart_home[['device', 'status', 'timestamp']], use_container_width=True)
+                
+                # Visualization
+                device_counts = patient_smart_home['device'].value_counts()
+                fig = px.pie(device_counts, names=device_counts.index, values=device_counts.values, title="Gerätenutzung im Smart Home")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Keine Smart-Home-Daten verfügbar.")
+
 
 # Footer
 st.markdown("---")
