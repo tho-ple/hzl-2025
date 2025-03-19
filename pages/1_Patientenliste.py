@@ -32,7 +32,7 @@ st.title("Patientenliste")
 
 # Sidebar: Patientensuche
 st.sidebar.header("Patienten")
-search = st.sidebar.text_input("Suche (Name oder ID)")
+search = st.sidebar.text_input("Suche nach Name oder ID")
 
 # Filter Patienten basierend auf Suche
 filtered_patients = patients.copy()
@@ -43,15 +43,33 @@ if search:
         (filtered_patients["nachname"].str.contains(search, case=False))
     ]
 
-# Patientenliste in Sidebar als Navigation anzeigen
-selected_patient = None
-for _, patient in filtered_patients.iterrows():
-    patient_info = f"{patient['vorname']} {patient['nachname']} (ID: {patient['pat_id']})"
-    if st.sidebar.button(patient_info, key=f"patient_{patient['pat_id']}"):
-        selected_patient = patient
+# Patientenliste in Sidebar als Radio-Buttons anzeigen
+st.sidebar.subheader("Wähle einen Patienten")
+patient_list = [
+    f"{row['vorname']} {row['nachname']} (ID: {row['pat_id']})"
+    for _, row in filtered_patients.iterrows()
+]
 
-# Patientendetails anzeigen
-if selected_patient is not None:
+# Add custom CSS for larger patient list items
+st.markdown("""
+    <style>
+    /* Larger text for the patient list items */
+    .sidebar .radio label {
+        font-size: 22px;  /* Increase font size */
+        line-height: 2.2rem;  /* More space between options */
+        padding: 10px; /* Add some padding around each item */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Show the patients as radio buttons in the sidebar
+selected_patient_info = st.sidebar.radio("Patient auswählen:", patient_list, index=0 if patient_list else None)
+
+# Falls ein Patient ausgewählt wurde, entsprechende Details abrufen
+if selected_patient_info:
+    selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
+    selected_patient = patients[patients["pat_id"] == selected_patient_id].iloc[0]
+
     st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
 
     col1, col2 = st.columns(2)
@@ -66,6 +84,7 @@ if selected_patient is not None:
         st.subheader("Adresse")
         st.write(f"**Wohnort:** {selected_patient['adresse']}")
 
+    # Gesundheitsdaten anzeigen
     st.subheader("Gesundheitshistorie")
     if 'health_monitoring' in db_data:
         health_data = db_data['health_monitoring']
@@ -78,29 +97,13 @@ if selected_patient is not None:
         st.write("Keine Gesundheitsdaten verfügbar.")
 
 else:
-    # Falls kein Patient ausgewählt wurde, allgemeine Statistik anzeigen
-    st.info("Wählen Sie einen Patienten aus der Seitenleiste aus, um Details anzuzeigen.")
-
-    # Patientenstatistik
-    st.subheader("Patientenstatistik")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Gesamtanzahl", len(patients))
-    with col2:
-        st.metric("Durchschnittsalter", f"{patients['age'].mean():.1f} Jahre")
-
-    # Kompakte Übersicht
-    st.subheader("Übersicht aller Patienten")
-    st.dataframe(
-        patients[['pat_id', 'vorname', 'nachname', 'age', 'geschlecht', 'betreuer_id']],
-        use_container_width=True
-    )
+    st.info("Wähle einen Patienten aus der Seitenleiste.")
 
 # Footer
 st.markdown("---")
 st.markdown("""
     <div style='text-align: center'>
         <p>Häuser zum Leben - Intelligentes Pflegemanagement System</p>
-        <p>© 2024 - Demo Version</p>
+        <p>© 2025 - Demo Version</p>
     </div>
 """, unsafe_allow_html=True)
