@@ -78,6 +78,11 @@ st.markdown("""
 # Show the patients as radio buttons in the sidebar
 selected_patient_info = st.sidebar.radio("Patient auswählen:", patient_list, index=0 if patient_list else None)
 
+messages = st.sidebar.container(height=300)
+if prompt := st.sidebar.chat_input("Say something"):        
+    messages.chat_message("user").write(prompt)
+    messages.chat_message("assistant").write(f"Echo: {prompt}")
+
 # Falls ein Patient ausgewählt wurde, entsprechende Details abrufen
 if selected_patient_info:
     selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
