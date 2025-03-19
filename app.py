@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import os
+from PIL import Image
+import base64
+from io import BytesIO
 from utils import setup_page_config, load_database_data, calculate_social_isolation_risk, calculate_fall_risk
 
 # Setup page configuration
@@ -12,6 +16,31 @@ setup_page_config()
 # Load database data
 db_data = load_database_data()
 patients = db_data.get('patient', pd.DataFrame())
+
+# Function to convert base64 to image
+def base64_to_image(base64_string):
+    try:
+        # Remove the data URL prefix if present
+        if ',' in base64_string:
+            base64_string = base64_string.split(',')[1]
+        # Decode base64 string
+        image_data = base64.b64decode(base64_string)
+        # Convert to image
+        image = Image.open(BytesIO(image_data))
+        return image
+    except:
+        return None
+
+# Function to get profile picture
+def get_profile_picture(nachname):
+    try:
+        # Check if the image file exists in the img folder
+        image_path = os.path.join("img", f"{nachname}.png")
+        if os.path.exists(image_path):
+            return image_path
+    except Exception as e:
+        st.error(f"Fehler beim Laden des Profilbilds: {str(e)}")
+    return "img/default_profile.png"  # Return default profile picture path
 
 # Berechnung des Alters aus dem Geburtsdatum
 def calculate_age(birthdate):
@@ -140,6 +169,11 @@ if selected_patient_info:
 
         with col1:
             st.subheader("Persönliche Informationen")
+            
+            # Profile Picture Section
+            profile_pic_path = get_profile_picture(selected_patient['nachname'])
+            st.image(profile_pic_path, width=150)
+            
             st.write(f"**Alter:** {selected_patient['age']} Jahre")
             st.write(f"**Geschlecht:** {selected_patient['geschlecht']}")
             st.write(f"**Betreuer-ID:** {selected_patient['betreuer_id']}")
