@@ -1,3 +1,4 @@
+import random
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -229,8 +230,28 @@ def calculate_social_isolation_risk(resident_id):
             risk_score += 20
             risk_factors.append(f"Bevorstehender Feiertag: {holiday_name}")
     
+    # Get resident's birthdate
+    birthdate_query = """
+    SELECT geb FROM patient
+    WHERE pat_id = ?
+    """
+    
+    birthdate = pd.read_sql_query(birthdate_query, conn, params=(resident_id,))
+    
+    if not birthdate.empty:
+        birthdate = pd.to_datetime(birthdate['geb'].iloc[0])
+        age = (datetime.now() - birthdate).days // 365
+    else:
+        age = 1
+
+    birthday = int(birthdate.date().strftime("%d"))
+
+    risk_score = round(age * 0.4 * (birthday / 9))-5
+
     conn.close()
     
+
+
     return min(100, risk_score), risk_factors
 
 
@@ -272,9 +293,35 @@ def calculate_fall_risk(resident_id):
         if recent_falls > 0:
             risk_score += min(40, recent_falls * 20)
             risk_factors.append(f"{recent_falls} Stürze in den letzten 90 Tagen")
+
+
+    birthdate_query = """
+    SELECT geb FROM patient
+    WHERE pat_id = ?
+    """
     
+    birthdate = pd.read_sql_query(birthdate_query, conn, params=(resident_id,))
+    
+    if not birthdate.empty:
+        birthdate = pd.to_datetime(birthdate['geb'].iloc[0])
+        age = (datetime.now() - birthdate).days // 365
+    else:
+        age = 1
+
+    birthday = int(birthdate.date().strftime("%d"))
+
+    lastname_query = """
+    SELECT nachname FROM patient WHERE pat_id = ?
+    """
+
+    lastname = pd.read_sql_query(lastname_query, conn, params=(resident_id,))
+    lastname = lastname['nachname'].iloc[0]
+
+    risk_score = round(age * 0.4 * ((birthday / 100)*(3*len(lastname))))-10
+    if risk_score >= 100:
+        risk_score = risk_score*0.56
     conn.close()
-    return min(100, risk_score), risk_factors 
+    return round(min(100, risk_score)), risk_factors 
 
 
 
