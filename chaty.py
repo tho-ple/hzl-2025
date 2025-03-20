@@ -2,14 +2,17 @@ import os
 from openai import OpenAI
 import sqlite3
 import json
-from dotenv import load_dotenv
+import streamlit as st
 
-# Load environment variables from .env file
-load_dotenv()
+# Get API key from Streamlit secrets
+try:
+    api_key = st.secrets["OPENAI_API_KEY"]
+except KeyError as e:
+    st.error(f"Chat functionality won't work because of a missing API key. Exception: {str(e)}")
+    api_key = None
 
-# Set up OpenAI client using environment variable
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+# Set up OpenAI client using secrets
+client = OpenAI(api_key=api_key)
 
 def get_all_tables():
     """Get a list of all tables in the database"""
