@@ -65,7 +65,7 @@ if not patients.empty:
 #     </div>
 # """, unsafe_allow_html=True)
 
-st.title("Bewohnerliste")
+st.title("Übersicht")
 
 # Add Logo
 st.sidebar.image("./img/logo_lang.png", width=250)
