@@ -3,6 +3,7 @@ from openai import OpenAI
 import sqlite3
 import json
 from dotenv import load_dotenv
+import streamlit as st
 
 # Load environment variables from .env file
 load_dotenv()
@@ -10,7 +11,6 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
 if not api_key:
-    import streamlit as st
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
     except KeyError as e:
