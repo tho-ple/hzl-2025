@@ -65,13 +65,13 @@ if not patients.empty:
 #     </div>
 # """, unsafe_allow_html=True)
 
-st.title("Patientenliste")
+st.title("Bewohnerliste")
 
 # Add Logo
 st.sidebar.image("./img/logo_lang.png", width=250)
 
 # Sidebar: Patientensuche
-st.sidebar.header("Patienten")
+st.sidebar.header("Bewohner")
 search = st.sidebar.text_input("Suche nach Name oder ID")
 
 # Filter Patienten basierend auf Suche
@@ -84,7 +84,7 @@ if search:
     ]
 
 # Patientenliste in Sidebar als Radio-Buttons anzeigen
-st.sidebar.subheader("Wähle einen Patienten")
+st.sidebar.subheader("Wähle einen Bewohner")
 patient_list = [
     f"{row['vorname']} {row['nachname']} (ID: {row['pat_id']})"
     for _, row in filtered_patients.iterrows()
@@ -103,11 +103,14 @@ st.markdown("""
         line-height: 2.2rem;  /* More space between options */
         padding: 10px; /* Add some padding around each item */
     }
+    .st-emotion-cache-ue6h4q {
+        min-height: 1px;
+    }
     /* Style chat messages */
     .chat-message {
         padding: 8px 12px;
         border-radius: 15px;
-        margin-bottom: 8px;
+        margin-bottom: 8px;s
         font-size: 14px;
     }
     .user-message {
@@ -122,11 +125,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Show the patients as radio buttons in the sidebar
-selected_patient_info = st.sidebar.radio("Patient auswählen:", patient_list, index=0 if patient_list else None)
+selected_patient_info = st.sidebar.radio("", patient_list, index=0 if patient_list else None)
 
 # Improved chat interface
 st.sidebar.markdown("### Assistenz-Chat")
-st.sidebar.markdown("Stellen Sie Fragen zu Patienten oder zur Datenbank:")
+st.sidebar.markdown("Stellen Sie Fragen zu Bewohnern oder zur Datenbank:")
 
 # Initialize chat history in session state if it doesn't exist
 if "chat_history" not in st.session_state:
@@ -134,6 +137,7 @@ if "chat_history" not in st.session_state:
 
 # Display chat messages from history
 messages = st.sidebar.container(height=300)
+messages.chat_message("assistant").write("Willkommen! Wie kann ich Ihnen helfen?")
 for message in st.session_state.chat_history:
     messages.chat_message(message["role"]).write(message["content"])
 
@@ -156,7 +160,7 @@ if selected_patient_info:
     selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
     selected_patient = patients[patients["pat_id"] == selected_patient_id].iloc[0]
 
-    st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
+    st.header(f"Bewohner: {selected_patient['vorname']} {selected_patient['nachname']}")
 
     # Calculate all status metrics
     isolation_risk, isolation_factors = calculate_social_isolation_risk(selected_patient_id)
@@ -208,7 +212,7 @@ if selected_patient_info:
     st.markdown("---")
     
     # Tabs für unterschiedliche Ansichten
-    tab1, tab2, tab3 = st.tabs(["Patienten-Informationen", "Datenvisualisierung", "Sicherheitsdaten"])
+    tab1, tab2, tab3 = st.tabs(["Bewohner-Informationen", "Datenvisualisierung", "Sicherheitsdaten"])
     
     with tab1:
         col1, col2 = st.columns(2)
