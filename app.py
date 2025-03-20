@@ -159,7 +159,7 @@ if selected_patient_info:
     selected_patient_id = int(selected_patient_info.split("(ID: ")[1][:-1])
     selected_patient = patients[patients["pat_id"] == selected_patient_id].iloc[0]
 
-    st.header(f"Patient: {selected_patient['vorname']} {selected_patient['nachname']}")
+    st.header(f"Bewohner: {selected_patient['vorname']} {selected_patient['nachname']}")
 
     # Calculate all status metrics
     isolation_risk, isolation_factors = calculate_social_isolation_risk(selected_patient_id)
