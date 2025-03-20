@@ -7,8 +7,18 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    import streamlit as st
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except KeyError as e:
+        st.error(f"Chat functionality won't work because of a missing API key. Exception: {str(e)}")
+        api_key = None
+
 # Set up OpenAI client using environment variable
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=api_key)
 
 
 def get_all_tables():
