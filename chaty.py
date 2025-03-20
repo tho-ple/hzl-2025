@@ -2,9 +2,14 @@ import os
 from openai import OpenAI
 import sqlite3
 import json
+from dotenv import load_dotenv
 
-# Set up OpenAI client
-client = OpenAI(api_key="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")
+# Load environment variables from .env file
+load_dotenv()
+
+# Set up OpenAI client using environment variable
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 def get_all_tables():
     """Get a list of all tables in the database"""
@@ -64,7 +69,7 @@ def query_database(query):
 def generate_response(prompt, model="gpt-3.5-turbo", concise=False):
     """Generate a response from OpenAI with option for concise output"""
     try:
-        system_message = "You are an analyst who examines healthcare database information and provides clear insights and conclusions. Always respond in the same language as the user's question."
+        system_message = "You are an analyst who examines healthcare database information and provides clear insights and conclusions. You MUST ALWAYS respond in the EXACT SAME LANGUAGE as the user's question"
         if concise:
             system_message += " Keep your responses brief and focused only on the most important findings. Limit to 2-3 short paragraphs maximum."
         
@@ -112,6 +117,10 @@ def generate_sql_for_question(question):
     
     User question: "{question}"
     
+    IMPORTANT TERMINOLOGY MAPPING:
+    - When the question uses "Bewohner" in German, this refers to "patient" or "patienten" tables/data
+    - "Bewohner" and "Patient" mean the same thing in this context
+    
     Return ONLY the SQL query with no explanations or markdown. The query should be directly executable in SQLite.
     """
     
@@ -143,15 +152,18 @@ def smart_research_chatbot(question):
         
         Database structure:
         {json.dumps(db_structure, indent=2)}
-        
+                
         SQL Query used:
         {sql_query}
-        
+                
         Query results:
         {json.dumps(query_results, indent=2)}
-        
+                
+        CONTEXT INFO: In this healthcare database, "Bewohner" and "Patient" refer to the same entities.
+                
         Provide ONLY the most important insights and direct answers. Be brief and to the point.
         Avoid lengthy explanations, background information, or repetition.
+        IMPORTANT: Your response MUST be in the SAME LANGUAGE as the original question.
         """
         
         # Step 5: Generate the concise response
