@@ -137,6 +137,7 @@ if "chat_history" not in st.session_state:
 
 # Display chat messages from history
 messages = st.sidebar.container(height=300)
+messages.chat_message("assistant").write("Willkommen! Wie kann ich Ihnen helfen?")
 for message in st.session_state.chat_history:
     messages.chat_message(message["role"]).write(message["content"])
 
