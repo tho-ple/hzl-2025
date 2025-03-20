@@ -1,2 +1,5 @@
 .DS_Store
 .env
+
+# Ignore Python bytecode files
+__pycache__/
